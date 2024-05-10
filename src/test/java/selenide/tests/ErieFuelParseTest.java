@@ -8,7 +8,9 @@ import selenide.tests.testsuites.TestSuiteConst;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
-import java.time.LocalDate;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 @Tag(TestSuiteConst.FuelSuite)
 public class ErieFuelParseTest {
@@ -16,13 +18,16 @@ public class ErieFuelParseTest {
 
     @Test
     public void unleadedParseTest() throws FileNotFoundException, UnsupportedEncodingException {
-        LocalDate currentDate = LocalDate.now();
+        Date currentDate = new Date();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd MMM, yyyy, hh:mm a", Locale.US);
+        String formattedDateTime = dateFormat.format(currentDate);
 
         erieSamsClubPage.open();
         String unleadedPrice = erieSamsClubPage.getUnleadedPrice();
 
         PrintWriter writer = new PrintWriter("gasPrice.txt", "UTF-8");
-        writer.println("Now local USA time in Erie,PA is " + currentDate + " and Unleaded gas price is " + unleadedPrice);
+        writer.println("Now local USA time in Erie,PA is " + formattedDateTime);
+        writer.println("Unleaded gas price at Sam's Club Erie is " + unleadedPrice);
         writer.close();
     }
 }
