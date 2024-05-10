@@ -25,9 +25,12 @@ public class ErieFuelParseTest {
         erieSamsClubPage.open();
         String unleadedPrice = erieSamsClubPage.getUnleadedPrice();
 
-        PrintWriter writer = new PrintWriter("gasPrice.txt", "UTF-8");
-        writer.println("Now local USA time in Erie,PA is " + formattedDateTime + ".");
-        writer.println("Unleaded gas price at Sam's Club Erie is " + unleadedPrice + ".");
-        writer.close();
+        PrintWriter writerGreetings = new PrintWriter("gasPriceGreetings.txt", "UTF-8");
+        writerGreetings.println("Now local USA time in Erie,PA is " + formattedDateTime + ".");
+        writerGreetings.close();
+
+        PrintWriter writerPrice = new PrintWriter("gasPrice.txt", "UTF-8");
+        writerPrice.println("Unleaded gas price at Sam's Club Erie is " + unleadedPrice + ".");
+        writerPrice.close();
     }
 }
