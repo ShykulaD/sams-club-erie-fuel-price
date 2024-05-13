@@ -27,11 +27,8 @@ public class ErieFuelParseTest {
 
         PrintWriter writerGreetings = new PrintWriter("gasPriceGreetings.txt", "UTF-8");
         writerGreetings.println("Now local USA time in Erie,PA is " + formattedDateTime + ".");
+        writerGreetings.println("Unleaded gas price at Sam's Club Erie is " + unleadedPrice + ".");
         writerGreetings.close();
-
-        PrintWriter writerPrice = new PrintWriter("gasPrice.txt", "UTF-8");
-        writerPrice.println("Unleaded gas price at Sam's Club Erie is " + unleadedPrice + ".");
-        writerPrice.close();
 
         PrintWriter justPrice = new PrintWriter("justPrice.txt", "UTF-8");
         justPrice.println(unleadedPrice);
