@@ -27,8 +27,8 @@ public class ErieSamsClubPage extends CommonPage {
     }
 
     public String getUnleadedPrice() {
-        return Objects.requireNonNull(unleadedGas.shouldBe(visible.because("Unleaded gas price should be present on the page"))
-                .getAttribute("aria-label").substring(9));
+        return Objects.requireNonNull(Objects.requireNonNull(unleadedGas.shouldBe(visible.because("Unleaded gas price should be present on the page"))
+                .getAttribute("aria-label")).substring(9));
     }
 
 }
