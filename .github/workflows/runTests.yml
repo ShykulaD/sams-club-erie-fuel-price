@@ -2,8 +2,8 @@ name: Automated tests
 
 on:
   workflow_dispatch:
-    schedule:
-      - cron: '50 14,21 * * *'
+  schedule:
+    - cron: '50 14,21 * * *'
 
 jobs:
   test:
@@ -42,26 +42,57 @@ jobs:
       - name: Run tests
         run: ./gradlew testFuelSuite
 
-      - name: Read data from files
-        id: read_data
+      - name: Read current data from file
+        id: read_current_data
         shell: pwsh
         run: |
           $justPriceData = Get-Content -Path "justPrice.txt" -Raw
-          $justPriceData = $justPriceData -replace "`n", " " -replace "`r", " " # Удаление новых строк
-          $gasPriceData = Get-Content -Path "gasPriceGreetings.txt" -Raw
-          $gasPriceData = $gasPriceData -replace "`n", " " -replace "`r", " " # Удаление новых строк
+          $justPriceData = $justPriceData -replace "`n", " " -replace "`r", " "
           echo "justPriceData=$justPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          echo "gasPriceData=$gasPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Send email report
+      - name: Download previous price artifact
+        id: download_previous_price
+        uses: actions/download-artifact@v3
+        with:
+          name: previousPrice
+          path: previousPrice.txt
+        continue-on-error: true
+
+      - name: Read previous data from file
+        id: read_previous_data
+        shell: pwsh
+        run: |
+          if (Test-Path -Path "previousPrice.txt") {
+            $previousPriceData = Get-Content -Path "previousPrice.txt" -Raw
+            $previousPriceData = $previousPriceData -replace "`n", " " -replace "`r", " "
+          } else {
+            $previousPriceData = ""
+          }
+          echo "previousPriceData=$previousPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compare prices and send email if changed
+        if: ${{ env.justPriceData != env.previousPriceData }}
+        run: echo "Price changed from ${{ env.previousPriceData }} to ${{ env.justPriceData }}"
+
+      - name: Send email report if price changed
+        if: ${{ env.justPriceData != env.previousPriceData }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: ${{ env.justPriceData }}
+          subject: Price changed to ${{ env.justPriceData }}
           body: |
-            ${{ env.gasPriceData }}
+            The price of unleaded gas has changed.
+            Previous price: ${{ env.previousPriceData }}
+            New price: ${{ env.justPriceData }}
           to: ${{ secrets.EMAIL_TO }}
           from: ${{ secrets.EMAIL_FROM }}
+
+      - name: Upload current price artifact
+        if: ${{ env.justPriceData != env.previousPriceData }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: previousPrice
+          path: justPrice.txt
