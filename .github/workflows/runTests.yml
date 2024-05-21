@@ -66,7 +66,7 @@ jobs:
             $previousPriceData = Get-Content -Path "previousPrice.txt" -Raw
             $previousPriceData = $previousPriceData -replace "`n", " " -replace "`r", " "
           } else {
-            $previousPriceData = ""
+            $previousPriceData = "No previous price available"
           }
           echo "previousPriceData=$previousPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
@@ -75,7 +75,7 @@ jobs:
         run: echo "Price changed from ${{ env.previousPriceData }} to ${{ env.justPriceData }}"
 
       - name: Send email report if price changed
-        if: ${{ env.justPriceData != env.previousPriceData }}
+        if: ${{ env.justPriceData != env.previousPriceData && env.previousPriceData != 'No previous price available' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
