@@ -3,7 +3,7 @@ name: Automated tests
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 15,20,1 * * *'
+    - cron: '0 13,18,23 * * *'
 
 jobs:
   test:
