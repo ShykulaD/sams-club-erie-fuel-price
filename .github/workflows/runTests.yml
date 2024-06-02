@@ -70,6 +70,11 @@ jobs:
           }
           echo "previousPriceData=$previousPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
+      - name: Debug - Print price data
+        run: |
+          echo "Current Price Data: ${{ env.justPriceData }}"
+          echo "Previous Price Data: ${{ env.previousPriceData }}"
+
       - name: Compare prices and send email if changed
         if: ${{ env.justPriceData != env.previousPriceData }}
         run: echo "Price changed from ${{ env.previousPriceData }} to ${{ env.justPriceData }}"
