@@ -50,15 +50,15 @@ jobs:
           $justPriceData = $justPriceData -replace "`n", " " -replace "`r", " "
           echo "justPriceData=$justPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Download previous price artifact
-        id: download_previous_price
-        uses: actions/download-artifact@v3
+      - name: Cache previous price artifact
+        id: cache_previous_price
+        uses: actions/cache@v3
         with:
-          name: previousPrice
           path: previousPrice.txt
-        continue-on-error: true
+          key: previous-price-cache
+          restore-keys: previous-price-cache
 
-      - name: Read previous data from file
+      - name: Read previous data from cache
         id: read_previous_data
         shell: pwsh
         run: |
@@ -90,9 +90,13 @@ jobs:
           to: ${{ secrets.EMAIL_TO }}
           from: ${{ secrets.EMAIL_FROM }}
 
-      - name: Upload current price artifact
+      - name: Copy current price to previous price
         if: ${{ env.justPriceData != env.previousPriceData }}
-        uses: actions/upload-artifact@v3
+        run: Copy-Item -Path "justPrice.txt" -Destination "previousPrice.txt"
+
+      - name: Update cache with current price
+        if: ${{ env.justPriceData != env.previousPriceData }}
+        uses: actions/cache@v3
         with:
-          name: previousPrice
-          path: justPrice.txt
+          path: previousPrice.txt
+          key: previous-price-cache
