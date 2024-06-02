@@ -47,7 +47,7 @@ jobs:
         shell: pwsh
         run: |
           $justPriceData = Get-Content -Path "justPrice.txt" -Raw
-          $justPriceData = $justPriceData -replace "`n", " " -replace "`r", " "
+          $justPriceData = $justPriceData.Trim() -replace "`n", " " -replace "`r", " "
           echo "justPriceData=$justPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Cache previous price artifact
@@ -64,23 +64,32 @@ jobs:
         run: |
           if (Test-Path -Path "previousPrice.txt") {
             $previousPriceData = Get-Content -Path "previousPrice.txt" -Raw
-            $previousPriceData = $previousPriceData -replace "`n", " " -replace "`r", " "
+            $previousPriceData = $previousPriceData.Trim() -replace "`n", " " -replace "`r", " "
           } else {
             $previousPriceData = "No previous price available"
           }
           echo "previousPriceData=$previousPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Debug - Print price data
+      - name: Print price data -
         run: |
           echo "Current Price Data: ${{ env.justPriceData }}"
           echo "Previous Price Data: ${{ env.previousPriceData }}"
 
-      - name: Compare prices and send email if changed
-        if: ${{ env.justPriceData != env.previousPriceData }}
-        run: echo "Price changed from ${{ env.previousPriceData }} to ${{ env.justPriceData }}"
+      - name: Compare prices and set email flag
+        id: compare_prices
+        run: |
+          if ($env:justPriceData -ne $env:previousPriceData) {
+            if ($env:previousPriceData -ne 'No previous price available') {
+              echo "price_changed=true" >> $env:GITHUB_ENV
+            } else {
+              echo "price_changed=false" >> $env:GITHUB_ENV
+            }
+          } else {
+            echo "price_changed=false" >> $env:GITHUB_ENV
+          }
 
       - name: Send email report if price changed
-        if: ${{ env.justPriceData != env.previousPriceData && env.previousPriceData != 'No previous price available' }}
+        if: ${{ env.price_changed == 'true' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
