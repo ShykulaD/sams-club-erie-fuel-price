@@ -42,6 +42,13 @@ jobs:
       - name: Run tests
         run: ./gradlew testFuelSuite
 
+      - name: Restore previous price file
+        id: restore_cache
+        uses: actions/cache@v3
+        with:
+          path: previousPrice.txt
+          key: price-cache
+
       - name: Read current data from file
         id: read_current_data
         shell: pwsh
@@ -50,27 +57,21 @@ jobs:
           $justPriceData = $justPriceData.Trim() -replace "`n", " " -replace "`r", " "
           echo "justPriceData=$justPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Cache previous price artifact
-        id: cache_previous_price
-        uses: actions/cache@v3
-        with:
-          path: previousPrice.txt
-          key: previous-price-cache
-          restore-keys: previous-price-cache
+      - name: Ensure previous price file exists
+        run: |
+          if (-not (Test-Path -Path "previousPrice.txt")) {
+            Set-Content -Path "previousPrice.txt" -Value "No previous price available"
+          }
 
-      - name: Read previous data from cache
+      - name: Read previous data from file
         id: read_previous_data
         shell: pwsh
         run: |
-          if (Test-Path -Path "previousPrice.txt") {
-            $previousPriceData = Get-Content -Path "previousPrice.txt" -Raw
-            $previousPriceData = $previousPriceData.Trim() -replace "`n", " " -replace "`r", " "
-          } else {
-            $previousPriceData = "No previous price available"
-          }
+          $previousPriceData = Get-Content -Path "previousPrice.txt" -Raw
+          $previousPriceData = $previousPriceData.Trim() -replace "`n", " " -replace "`r", " "
           echo "previousPriceData=$previousPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Print price data -
+      - name: Print price data
         run: |
           echo "Current Price Data: ${{ env.justPriceData }}"
           echo "Previous Price Data: ${{ env.previousPriceData }}"
@@ -78,12 +79,8 @@ jobs:
       - name: Compare prices and set email flag
         id: compare_prices
         run: |
-          if ($env:justPriceData -ne $env:previousPriceData) {
-            if ($env:previousPriceData -ne 'No previous price available') {
-              echo "price_changed=true" >> $env:GITHUB_ENV
-            } else {
-              echo "price_changed=false" >> $env:GITHUB_ENV
-            }
+          if ($env:previousPriceData -ne "No previous price available" -and $env:justPriceData -ne $env:previousPriceData) {
+            echo "price_changed=true" >> $env:GITHUB_ENV
           } else {
             echo "price_changed=false" >> $env:GITHUB_ENV
           }
@@ -104,13 +101,11 @@ jobs:
           to: ${{ secrets.EMAIL_TO }}
           from: ${{ secrets.EMAIL_FROM }}
 
-      - name: Copy current price to previous price
-        if: ${{ env.justPriceData != env.previousPriceData }}
+      - name: Save current price as previous price
         run: Copy-Item -Path "justPrice.txt" -Destination "previousPrice.txt"
 
-      - name: Update cache with current price
-        if: ${{ env.justPriceData != env.previousPriceData }}
+      - name: Update cache with new price
         uses: actions/cache@v3
         with:
           path: previousPrice.txt
-          key: previous-price-cache
+          key: price-cache
