@@ -51,6 +51,15 @@ jobs:
           restore-keys: |
             price-cache-${{ runner.os }}-
 
+      - name: Ensure previous price file exists
+        run: |
+          if (-not (Test-Path -Path "previousPrice.txt")) {
+            Set-Content -Path "previousPrice.txt" -Value "No previous price available"
+          }
+
+      - name: Debug previous price file content
+        run: cat previousPrice.txt
+
       - name: Read current data from file
         id: read_current_data
         shell: pwsh
@@ -59,12 +68,6 @@ jobs:
           $justPriceData = $justPriceData.Trim() -replace "`n", " " -replace "`r", " "
           echo "justPriceData=$justPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Ensure previous price file exists
-        run: |
-          if (-not (Test-Path -Path "previousPrice.txt")) {
-            Set-Content -Path "previousPrice.txt" -Value "No previous price available"
-          }
-
       - name: Read previous data from file
         id: read_previous_data
         shell: pwsh
@@ -72,6 +75,9 @@ jobs:
           $previousPriceData = Get-Content -Path "previousPrice.txt" -Raw
           $previousPriceData = $previousPriceData.Trim() -replace "`n", " " -replace "`r", " "
           echo "previousPriceData=$previousPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Debug current price file content
+        run: cat justPrice.txt
 
       - name: Print price data
         run: |
