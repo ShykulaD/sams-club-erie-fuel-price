@@ -1,4 +1,4 @@
-# This repository for pet project (mostly for running on Jenkins CI/CD). Parsing unleaded gas price from local Erie,PA Sam's club gas station.
+# This repository for pet project (mostly for running on Jenkins CI/CD (upd: for GitHub actions)). Parsing unleaded gas price from local Erie,PA Sam's club gas station.
 
 *Project structure:*
 
