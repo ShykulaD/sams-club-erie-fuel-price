@@ -29,12 +29,16 @@ jobs:
         with:
           gradle-version: '7.5'
 
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+
       - name: Set up ChromeDriver
+        uses: nanasess/setup-chromedriver@v2
+
+      - name: Set Chrome env variables
         run: |
-          curl -O https://chromedriver.storage.googleapis.com/$(curl -s https://chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_win32.zip
-          mkdir chromedriver
-          tar -xf chromedriver_win32.zip -C chromedriver
-          echo "$(pwd)/chromedriver" >> $GITHUB_PATH
+          echo "CHROME_BIN=$env:CHROME_BIN" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CHROMEWEBDRIVER=$env:CHROMEWEBDRIVER" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build with Gradle
         run: gradle build
