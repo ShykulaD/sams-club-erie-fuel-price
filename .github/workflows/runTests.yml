@@ -3,6 +3,7 @@ name: Automated tests
 on:
   workflow_dispatch:
   schedule:
+    # every day at 13:00, 18:00 and 23:00 UTC
     - cron: '0 13,18,23 * * *'
 
 jobs:
@@ -10,55 +11,63 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # ─────────────── SCM ───────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
+      # ─────────────── RUNTIMES ───────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4           # ↑ v3 → **v4**
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
+          cache: gradle                      # кэширование m2‑/gradle‑артефактов
 
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v2
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4          # ↑ v2 → **v4**
         with:
           node-version: '20'
+          cache: npm                         # кэширование npm‑моду‑лей
 
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v3
         with:
           gradle-version: '7.5'
 
+      # ─────────────── BROWSERS ───────────────
       - name: Set up Chrome
         uses: browser-actions/setup-chrome@v1
 
       - name: Set up ChromeDriver
-        uses: nanasess/setup-chromedriver@v2
+        uses: browser-actions/setup-chromedriver@v1   # вместо nanasess/setup‑chromedriver
 
       - name: Set Chrome env variables
         run: |
-          echo "CHROME_BIN=$env:CHROME_BIN" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "CHROMEWEBDRIVER=$env:CHROMEWEBDRIVER" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CHROME_BIN=$env:CHROME_BIN"           | Out-File $env:GITHUB_ENV -Append
+          echo "CHROMEWEBDRIVER=$env:CHROMEWEBDRIVER" | Out-File $env:GITHUB_ENV -Append
 
+      # ─────────────── BUILD & TEST ───────────────
       - name: Build with Gradle
-        run: gradle build
+        run: ./gradlew build                          # wrapper > системный gradle
 
       - name: Run tests
         run: ./gradlew testFuelSuite
 
+      # ─────────────── PRICE‑CACHE ───────────────
       - name: Restore previous price file
         id: restore_cache
         uses: actions/cache@v3
         with:
           path: previousPrice.txt
-          key: price-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_number }}
+          key: price-cache-${{ runner.os }}-${{ github.ref_name }}
           restore-keys: |
             price-cache-${{ runner.os }}-${{ github.ref_name }}-
 
       - name: Ensure previous price file exists
+        shell: pwsh
         run: |
-          if (-not (Test-Path -Path "previousPrice.txt")) {
-            Set-Content -Path "previousPrice.txt" -Value "No previous price available"
+          if (-not (Test-Path previousPrice.txt)) {
+            "No previous price available" | Set-Content previousPrice.txt
           }
 
       - name: Debug previous price file content
@@ -68,17 +77,15 @@ jobs:
         id: read_current_data
         shell: pwsh
         run: |
-          $justPriceData = Get-Content -Path "justPrice.txt" -Raw
-          $justPriceData = $justPriceData.Trim() -replace "`n", " " -replace "`r", " "
-          echo "justPriceData=$justPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $justPriceData = (Get-Content justPrice.txt -Raw).Trim() -replace "`r?`n", " "
+          "justPriceData=$justPriceData" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Read previous data from file
         id: read_previous_data
         shell: pwsh
         run: |
-          $previousPriceData = Get-Content -Path "previousPrice.txt" -Raw
-          $previousPriceData = $previousPriceData.Trim() -replace "`n", " " -replace "`r", " "
-          echo "previousPriceData=$previousPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $previousPriceData = (Get-Content previousPrice.txt -Raw).Trim() -replace "`r?`n", " "
+          "previousPriceData=$previousPriceData" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Debug current price file content
         run: cat justPrice.txt
@@ -90,15 +97,18 @@ jobs:
 
       - name: Compare prices and set email flag
         id: compare_prices
+        shell: pwsh
         run: |
-          if ($env:previousPriceData -ne "No previous price available" -and $env:justPriceData -ne $env:previousPriceData) {
-            echo "price_changed=true" >> $env:GITHUB_ENV
+          if ($env:previousPriceData -ne "No previous price available" `
+              -and $env:justPriceData -ne $env:previousPriceData) {
+            "price_changed=true" | Out-File $env:GITHUB_ENV -Append
           } else {
-            echo "price_changed=false" >> $env:GITHUB_ENV
+            "price_changed=false" | Out-File $env:GITHUB_ENV -Append
           }
 
+      # ─────────────── NOTIFY ───────────────
       - name: Send email report if price changed
-        if: ${{ env.price_changed == 'true' }}
+        if: env.price_changed == 'true'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -110,14 +120,17 @@ jobs:
             The price of unleaded gas has changed.
             Previous price: ${{ env.previousPriceData }}
             New price: ${{ env.justPriceData }}
-          to: ${{ secrets.EMAIL_TO }}
+          to:   ${{ secrets.EMAIL_TO }}
           from: ${{ secrets.EMAIL_FROM }}
 
+      # ─────────────── UPDATE CACHE ───────────────
       - name: Save current price as previous price
-        run: Copy-Item -Path "justPrice.txt" -Destination "previousPrice.txt"
+        shell: pwsh
+        run: Copy-Item justPrice.txt previousPrice.txt -Force
 
       - name: Update cache with new price
         uses: actions/cache@v3
+        if: always()
         with:
           path: previousPrice.txt
           key: price-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_number }}
