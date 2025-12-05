@@ -54,7 +54,7 @@ jobs:
           path: previousPrice.txt
           key: price-cache-${{ runner.os }}-${{ github.ref_name }}
           restore-keys: |
-            price-cache-${{ runner.os }}-${{ github.ref_name }}-
+            price-cache-${{ runner.os }}-${{ github.ref_name }}
 
       - name: Ensure previous price file exists
         shell: pwsh
@@ -123,4 +123,4 @@ jobs:
         if: always()
         with:
           path: previousPrice.txt
-          key: price-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_number }}
+          key: price-cache-${{ runner.os }}-${{ github.ref_name }}
