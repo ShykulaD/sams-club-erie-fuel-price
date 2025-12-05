@@ -47,40 +47,41 @@ jobs:
       - name: Run tests
         run: ./gradlew testFuelSuite
 
-      - name: Restore previous price file
-        id: restore_cache
-        uses: actions/cache@v3
+      # -------------------------------------------------------
+      # Load previous price from artifact
+      # -------------------------------------------------------
+      - name: Download previous price (if exists)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
-          path: previousPrice.txt
-          key: price-cache-${{ runner.os }}-${{ github.ref_name }}
-          restore-keys: |
-            price-cache-${{ runner.os }}-${{ github.ref_name }}
+          name: previous-price
 
-      - name: Ensure previous price file exists
+      - name: Ensure previous price exists
         shell: pwsh
         run: |
           if (-not (Test-Path previousPrice.txt)) {
             "No previous price available" | Set-Content previousPrice.txt
           }
 
-      - name: Debug previous price file content
+      - name: Read previous data from file
+        shell: pwsh
+        run: |
+          $prev = (Get-Content previousPrice.txt -Raw).Trim()
+          "previousPriceData=$prev" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Debug previous price
         run: cat previousPrice.txt
 
+      # -------------------------------------------------------
+      # Read current price
+      # -------------------------------------------------------
       - name: Read current data from file
-        id: read_current_data
         shell: pwsh
         run: |
-          $justPriceData = (Get-Content justPrice.txt -Raw).Trim() -replace "`r?`n", " "
-          "justPriceData=$justPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $curr = (Get-Content justPrice.txt -Raw).Trim()
+          "justPriceData=$curr" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Read previous data from file
-        id: read_previous_data
-        shell: pwsh
-        run: |
-          $previousPriceData = (Get-Content previousPrice.txt -Raw).Trim() -replace "`r?`n", " "
-          "previousPriceData=$previousPriceData" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: Debug current price file content
+      - name: Debug current price
         run: cat justPrice.txt
 
       - name: Print price data
@@ -88,8 +89,10 @@ jobs:
           echo "Current Price Data: ${{ env.justPriceData }}"
           echo "Previous Price Data: ${{ env.previousPriceData }}"
 
-      - name: Compare prices and set email flag
-        id: compare_prices
+      # -------------------------------------------------------
+      # Compare prices
+      # -------------------------------------------------------
+      - name: Compare prices and set flag
         shell: pwsh
         run: |
           if ($env:previousPriceData -ne "No previous price available" -and $env:justPriceData -ne $env:previousPriceData) {
@@ -98,6 +101,9 @@ jobs:
             "price_changed=false" | Out-File $env:GITHUB_ENV -Append
           }
 
+      # -------------------------------------------------------
+      # Send email
+      # -------------------------------------------------------
       - name: Send email report if price changed
         if: env.price_changed == 'true'
         uses: dawidd6/action-send-mail@v3
@@ -114,13 +120,15 @@ jobs:
           to: ${{ secrets.EMAIL_TO }}
           from: ${{ secrets.EMAIL_FROM }}
 
-      - name: Save current price as previous price
+      # -------------------------------------------------------
+      # Save new price for next run
+      # -------------------------------------------------------
+      - name: Save current price as previous
         shell: pwsh
         run: Copy-Item justPrice.txt previousPrice.txt -Force
 
-      - name: Update cache with new price
-        uses: actions/cache@v3
-        if: always()
+      - name: Upload new previous price
+        uses: actions/upload-artifact@v4
         with:
+          name: previous-price
           path: previousPrice.txt
-          key: price-cache-${{ runner.os }}-${{ github.ref_name }}
