@@ -48,13 +48,15 @@ jobs:
         run: ./gradlew testFuelSuite
 
       # -------------------------------------------------------
-      # Load previous price from artifact
+      # Restore previous price from cache
       # -------------------------------------------------------
-      - name: Download previous price (if exists)
-        uses: actions/download-artifact@v4
-        continue-on-error: true
+      - name: Restore previous price cache
+        uses: actions/cache/restore@v4
         with:
-          name: previous-price
+          path: previousPrice.txt
+          key: previous-price-cache
+          restore-keys: |
+            previous-price-cache-
 
       - name: Ensure previous price exists
         shell: pwsh
@@ -121,14 +123,14 @@ jobs:
           from: ${{ secrets.EMAIL_FROM }}
 
       # -------------------------------------------------------
-      # Save new price for next run
+      # Save current price
       # -------------------------------------------------------
       - name: Save current price as previous
         shell: pwsh
         run: Copy-Item justPrice.txt previousPrice.txt -Force
 
-      - name: Upload new previous price
-        uses: actions/upload-artifact@v4
+      - name: Save previous price cache
+        uses: actions/cache/save@v4
         with:
-          name: previous-price
           path: previousPrice.txt
+          key: previous-price-cache-${{ github.run_id }}
